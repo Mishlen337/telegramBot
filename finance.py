@@ -1,13 +1,13 @@
 import requests
 from urllib.request import urlopen
 import json
-import config_clone
+import config
 
 class Storage:
 
     def __init__(self):
         self._storage_companies = []
-        self._apikey = config_clone.apikey
+        self._apikey = config.apikey
         print('Хранилище проиницилизировано')
 
     def get_company_api(self,company):

@@ -1,4 +1,4 @@
-import config_clone
+import config
 import time
 import telebot
 import Keyboards
@@ -13,15 +13,15 @@ class Answers:
     #@classmethod    
     def check_primary_answer(self,text):
         print('Производится проверка первоначальных настроек')
-        if text == config_clone.PRIMARYKEYBOARD[0]:
+        if text == config.PRIMARYKEYBOARD[0]:
             objMarkup = Keyboards.CostomizeKeyboard()
             return objMarkup.generate_theory_markup(), 'Выбор темы'
 
-        if text == config_clone.PRIMARYKEYBOARD[1]:
+        if text == config.PRIMARYKEYBOARD[1]:
             objMarkup = Keyboards.CostomizeKeyboard()
             return objMarkup.generate_quote_markup(), 'Выбор валюты'
 
-        if text == config_clone.PRIMARYKEYBOARD[2]:
+        if text == config.PRIMARYKEYBOARD[2]:
             if self.existence_of_polling == 1:
                 return None, 'Вы уже выбрали показ уведомлений'
             else:
@@ -30,10 +30,10 @@ class Answers:
 
     #@classmethod
     def check_theory_answer(self,text):
-        if text == config_clone.THEORYKEYBOARD[0]:
+        if text == config.THEORYKEYBOARD[0]:
             return 'Здесь будет информация про инвестирование'
         
-        if text == config_clone.THEORYKEYBOARD[1]:
+        if text == config.THEORYKEYBOARD[1]:
             return 'Здесь будет информация про трейдинг'
 
     #@classmethod
@@ -45,23 +45,18 @@ class Answers:
             #return 'Здесь будет выводиться значение в рублях'
 
     #@classmethod
-    def check_notification_answer(self,company):
-        if text == config_clone.NOTIFICATIONKEYBOARD[0]:
+    def check_notification_answer(self,text,company):
+        if text == config.NOTIFICATIONKEYBOARD[0]:
             time.sleep(10)
-            name_of_company = 'Sber'
-            value_of_company = '130'
-            return f'Компания: {name_of_company} стоит {value_of_company}'
+            return f'Компания: {company} стоит {self.storage.get_companies_data(company)}'
                 
-        if text == config_clone.NOTIFICATIONKEYBOARD[1]:
-            time.sleep(15)
-            name_of_company = 'Sber'
-            value_of_company = '150'
-            return f'Компания: {name_of_company} стоит {value_of_company}'
+        if text == config.NOTIFICATIONKEYBOARD[1]:
+            time.sleep(20)
+            return f'Компания: {company} стоит {self.storage.get_companies_data(company)}'
         
-        if text == config_clone.NOTIFICATIONKEYBOARD[2]:
-            name_of_company = 'Sber'
-            value_of_company = '160'
-            return f'Компания: {name_of_company} стоит {value_of_company}'
+        if text == config.NOTIFICATIONKEYBOARD[2]:
+            time.sleep(30)
+            return f'Компания: {company} стоит {self.storage.get_companies_data(company)}'
 
     
 
