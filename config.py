@@ -7,3 +7,4 @@ QUOTEKEYBOARD = ['В исходной валюте', 'В рублях']
 NOTIFICATIONKEYBOARD = ['Раз в день', 'Раз в два дня','Раз в неделю']
 
 url_begining = 'https://finance.yahoo.com/quote/'
+url_currency_begining = 'https://www.xe.com/currencyconverter/convert/?Amount=1&From=USD&To='
