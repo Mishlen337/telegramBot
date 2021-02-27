@@ -4,6 +4,8 @@ import check_answers
 import time
 import finance
 from telebot import types
+import stock_price_plot
+
 bot = telebot.TeleBot(config.token)
 answer = check_answers.Answers()
 company = ""
@@ -42,10 +44,10 @@ keyboard_notification.add(button_day, button_2days, button_week)
 
 """ Инициализация клавиатуры графика """
 keyboard_graph = types.InlineKeyboardMarkup()
-button_week = types.InlineKeyboardButton(text = "За неделю", callback_data = "ГНеделя")
-button_year = types.InlineKeyboardButton(text = "За год", callback_data = "ГГод")
-button_all = types.InlineKeyboardButton(text = "За все время", callback_data = "ГВсе")
-
+button_gday = types.InlineKeyboardButton(text = "За неделю", callback_data = "ГНеделя")
+button_gweek = types.InlineKeyboardButton(text = "За месяц", callback_data = "ГМесяц")
+button_gyear = types.InlineKeyboardButton(text = "За год", callback_data = "ГГод")
+keyboard_graph.add(button_gday, button_gweek, button_gyear)
 
 @bot.message_handler(commands=['help'])
 def send_welcome(message):
@@ -75,6 +77,10 @@ def callback_inline(call):
 
     if call.data == "Уведомление":
         bot.send_message(call.message.chat.id, text = "Выбирите периодичность", reply_markup = keyboard_notification)
+        bot.delete_message(call.message.chat.id, call.message.id)
+    
+    if call.data == "График":
+        bot.send_message(call.message.chat.id, text = "Выбирите периодичность", reply_markup = keyboard_graph)
         bot.delete_message(call.message.chat.id, call.message.id)
 
     """ Отправка информации по теории """
@@ -132,7 +138,25 @@ def callback_inline(call):
         else:
             bot.delete_message(call.message.chat.id, call.message.id)
             bot.send_message(call.message.chat.id, text = "Уведомление выбрано")
+
+    """ Отправка графика функции """
+
+    if call.data == "ГНеделя":
+        bot.send_message(call.message.chat.id, text = "Введи компанию")
+        bot.delete_message(call.message.chat.id, call.message.id)
+        get_graph(call.data)
+
+    if call.data == "ГМесяц":
+        bot.send_message(call.message.chat.id, text = "Введи компанию")
+        bot.delete_message(call.message.chat.id, call.message.id)
+        get_graph(call.data)
+
+    if call.data == "ГГод":
+        bot.send_message(call.message.chat.id, text = "Введи компанию")
+        bot.delete_message(call.message.chat.id, call.message.id)
+        get_graph(call.data)      
             
+
 def get_company_day():
     @bot.message_handler(content_types=["text"])
     def company(message):
@@ -164,12 +188,12 @@ def get_company_ruble():
     def company(message):
         bot.send_message(message.chat.id, text = answer.quote_answer_ruble(message.text))
 
-
-
-
-
-
-
-
+def get_graph(period):
+    @bot.message_handler(content_types=["text"])
+    def company(message):
+        stock_price_plot.get_plot(message.text,period)
+        with open('foo.png', 'rb') as photo:
+            bot.send_photo(message.chat.id, photo = photo)
+        
 if __name__ == '__main__':
     bot.infinity_polling()
