@@ -1,15 +1,11 @@
 from matplotlib import pyplot as plt
-from yahoo_finance import Share
+import yfinance as yf
 
-def stock_plot(x_axis, y_axis):
+def stock_plot(x_axis : list, y_axis : list):
     fig, ax = plt.subplots()
     p = plt.plot(x_axis, y_axis)
-    return plt
+    plt.savefig("plot.png")
+    
 
-def get_plot(stockname, callback):
-    stock = Share(stockname)
-    stock.get_historical()
-    pass
 
-stock = Share("TSLA")
-print(stock.get_historical("24-07-2020", "25-07-2020"))
+stock_plot(['1','2'], ['3', '80'])
