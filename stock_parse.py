@@ -16,4 +16,15 @@ def parse_by_stockname(stockname : str) -> tuple:
     response = (price, currency)
     return response
 
-print(parse_by_stockname("GAZP.ME"))
+
+from forex_python.converter import CurrencyRates
+def parse_currency(currencyname : str) -> str:
+    """
+    Функция принимает на вход название валюты
+    Функция возвращает ее стоимость (по отношению к USD)
+    """
+    converter = CurrencyRates()
+    currency = converter.get_rates(currencyname)['RUB']
+    return currency
+
+#print(parse_by_stockname("GAZP.ME"))

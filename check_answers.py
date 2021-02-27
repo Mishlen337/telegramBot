@@ -2,7 +2,7 @@ import config
 import time
 import telebot
 import finance
-
+import stock_parse
 class Answers:
     def __init__(self):
         #self.list_of_notifications = [0,0,0]
@@ -17,22 +17,19 @@ class Answers:
         return 'Здесь будет информация про трейдинг'
 
     def quote_answer_ruble(self,company):
-        return 'Рубли'
+        val, currency = stock_parse.parse_by_stockname(company)
+        val = float(val) * float(stock_parse.parse_currency(currency))
+        return f'Компания: {company} стоит {val:.2f} RUB'
     
     def quote_answer_currency(self,company):
-        return 'Текущее'
+        val, currency = stock_parse.parse_by_stockname(company)
+        return f'Компания: {company} стоит {val} {currency}'
         
 
     #@classmethod
-    def notification_answer_day(self,company):
-            return f'Компания: {company} стоит '
-                
-    def notification_answer_2day(self,company):
-        return f'Компания: {company} стоит '
-        
-    def notification_answer_week(self,company):
-        return f'Компания: {company} стоит '
-
+    def notification_answer(self,company):
+        val, currency = stock_parse.parse_by_stockname(company)
+        return f'Компания: {company} стоит {val} {currency}'
     
 
 
