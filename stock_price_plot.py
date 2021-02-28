@@ -16,7 +16,7 @@ def stock_plot(x_axis, y_axis):
     p = plt.plot(x_axis, y_axis)
     plt.ylabel('Value', color = 'gray')
     plt.xlabel('Date', color = 'gray')
-    plt.xticks(rotation = 40)
+    plt.xticks(rotation = 20)
     plt.yticks(rotation = 0.1)
     plt.grid(True)
     plt.savefig('foo.png', bbox_inches='tight')
