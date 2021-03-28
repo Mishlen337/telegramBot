@@ -14,9 +14,14 @@ class States(Enum):
     S_TRADING = auto()
     S_RUBLE = auto()
     S_CURRENCY = auto()
-    S_DAY = auto()
-    S_2DAYS = auto()
-    S_WEEK = auto()
+    S_COMPANIES = auto()
     S_GWEEK = auto()
     S_GMONTH = auto()
     S_GYEAR = auto()
+    S_TIME = auto()
+
+class NotificationStates(Enum):
+    NS_NONE = 0
+    NS_DAY = 1
+    NS_2DAYS = 2
+    NS_WEEK = 3

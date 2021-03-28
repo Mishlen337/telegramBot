@@ -24,4 +24,22 @@ def set_state(user_chat_id, state):
             cur.execute( "INSERT or IGNORE INTO User (user_chat_id, state) VALUES (?,?)", (user_chat_id, state) )
         conn.commit()
 
+def set_notification_state(user_chat_id, state):
+    with sqlite3.connect(config.db_file) as conn:
+        cur = conn.cursor()
+        cur.execute("UPDATE User SET notification_state = ? WHERE user_chat_id = ?", (state,user_chat_id))
+        conn.commit()
 
+def set_notification_time(user_chat_id, time):
+    with sqlite3.connect(config.db_file) as conn:
+        cur = conn.cursor()
+        cur.execute("UPDATE User SET notification_time = ? WHERE user_chat_id = ?", (time,user_chat_id))
+        conn.commit()
+
+def set_notification_member(user_chat_id, company):
+    with sqlite3.connect(config.db_file) as conn:
+        cur = conn.cursor()
+        cur.execute("SELECT id FROM User WHERE user_chat_id = ?", (user_chat_id,))
+        user_id = cur.fetchone()[0]
+        cur.execute( "INSERT or IGNORE INTO Member (user_id, company_id) VALUES (?,?)", (user_id, company) )
+        conn.commit()

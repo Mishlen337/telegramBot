@@ -73,22 +73,20 @@ def callback_primary(call):
     if call.data == "Теория": 
         bot.send_message(call.message.chat.id, text = "Выберите теорию", reply_markup = keyboard_theory)
         dbworker.set_state(call.message.chat.id, config.States.S_THEORY.value)
-        bot.delete_message(call.message.chat.id, call.message.id)
         
     if call.data == "Котировка":
         bot.send_message(call.message.chat.id, text = "Выберите валюту", reply_markup = keyboard_quote)
         dbworker.set_state(call.message.chat.id, config.States.S_QUOTE.value)
-        bot.delete_message(call.message.chat.id, call.message.id)
 
     if call.data == "Уведомление":
         bot.send_message(call.message.chat.id, text = "Выбирите периодичность", reply_markup = keyboard_notification)
         dbworker.set_state(call.message.chat.id, config.States.S_NOTIFICATION.value)
-        bot.delete_message(call.message.chat.id, call.message.id)
-    
+        
     if call.data == "График":
         bot.send_message(call.message.chat.id, text = "Выбирите периодичность", reply_markup = keyboard_graph)
         dbworker.set_state(call.message.chat.id, config.States.S_GRAPH.value)
-        bot.delete_message(call.message.chat.id, call.message.id)
+    
+    bot.delete_message(call.message.chat.id, call.message.id)
 
 
 @bot.callback_query_handler(func = lambda call: dbworker.get_current_state(call.message.chat.id) == config.States.S_THEORY.value)
@@ -97,13 +95,12 @@ def callback_theory(call):
     if call.data == "Инвестирование":
         bot.send_message(call.message.chat.id, text = answer.theory_answer_investment())
         dbworker.set_state(call.message.chat.id, config.States.S_INVESTMENT.value)
-        bot.delete_message(call.message.chat.id, call.message.id)
 
     if call.data == "Трединг":
         bot.send_message(call.message.chat.id, text = answer.theory_answer_trading())
         dbworker.set_state(call.message.chat.id, config.States.S_TRADING.value)
-        bot.delete_message(call.message.chat.id, call.message.id)
-    
+
+    bot.delete_message(call.message.chat.id, call.message.id)
 
 @bot.callback_query_handler(func = lambda call: dbworker.get_current_state(call.message.chat.id) == config.States.S_QUOTE.value)
 def callback_quote(call):
@@ -111,84 +108,51 @@ def callback_quote(call):
     if call.data == "Рубль":
         bot.send_message(call.message.chat.id, text = "Введи компанию")
         dbworker.set_state(call.message.chat.id, config.States.S_RUBLE.value)
-        bot.delete_message(call.message.chat.id, call.message.id)
 
     if call.data == "Валюта":
         bot.send_message(call.message.chat.id, text = "Введи компанию")
         dbworker.set_state(call.message.chat.id, config.States.S_CURRENCY.value)
-        bot.delete_message(call.message.chat.id, call.message.id)
-"""      
-     Отправка уведомлений котеровок 
+
+    bot.delete_message(call.message.chat.id, call.message.id)
+
+@bot.callback_query_handler(func = lambda call: dbworker.get_current_state(call.message.chat.id) == config.States.S_NOTIFICATION.value)
+def callback_notification(call):
+    """Отправка уведомлений котеровок"""
     if call.data == "День":
-        if answer.existence_of_polling == 0:
-            answer.existence_of_polling = 1
-            bot.delete_message(call.message.chat.id, call.message.id)
-            bot.send_message(call.message.chat.id, text = "Введи компанию")
-            get_company_day()
-        else: 
-            bot.delete_message(call.message.chat.id, call.message.id)
-            bot.send_message(call.message.chat.id, text = "Уведомление выбрано")
+        bot.send_message(call.message.chat.id, text = "Введи компанию")
+        dbworker.set_notification_state(call.message.chat.id, config.NotificationStates.NS_DAY.value)
+        dbworker.set_state(call.message.chat.id, config.States.S_COMPANIES.value)
+
 
     if call.data == "2Дня":
-        if answer.existence_of_polling == 0:
-            answer.existence_of_polling = 1
-            bot.delete_message(call.message.chat.id, call.message.id)
-            bot.send_message(call.message.chat.id, text = "Введи компанию")
-            get_company_2days()
-        else:
-            bot.delete_message(call.message.chat.id, call.message.id)
-            bot.send_message(call.message.chat.id, text = "Уведомление выбрано")
-
+        bot.send_message(call.message.chat.id, text = "Введи компанию")
+        dbworker.set_notification_state(call.message.chat.id, config.NotificationStates.NS_2DAYS.value)
+        dbworker.set_state(call.message.chat.id, config.States.S_COMPANIES.value)
+        
 
     if call.data == "Неделя":
-        if answer.existence_of_polling == 0:
-            answer.existence_of_polling = 1
-            bot.delete_message(call.message.chat.id, call.message.id)
-            msg = bot.send_message(call.message.chat.id, text = "Введи компанию")
-            get_company_week()
-        else:
-            bot.delete_message(call.message.chat.id, call.message.id)
-            bot.send_message(call.message.chat.id, text = "Уведомление выбрано")
-"""
+        bot.send_message(call.message.chat.id, text = "Введи компанию")
+        dbworker.set_notification_state(call.message.chat.id, config.NotificationStates.NS_WEEK.value)
+        dbworker.set_state(call.message.chat.id, config.States.S_COMPANIES.value)
+        
+    bot.delete_message(call.message.chat.id, call.message.id)
+
 @bot.callback_query_handler(func = lambda call: dbworker.get_current_state(call.message.chat.id) == config.States.S_GRAPH.value)
 def callback_graph(call):
     """ Отправка графика функции """
     if call.data == "ГНеделя":
         bot.send_message(call.message.chat.id, text = "Введи компанию")
         dbworker.set_state(call.message.chat.id, config.States.S_GWEEK.value)
-        bot.delete_message(call.message.chat.id, call.message.id)
-
+       
     if call.data == "ГМесяц":
         bot.send_message(call.message.chat.id, text = "Введи компанию")
         dbworker.set_state(call.message.chat.id, config.States.S_GMONTH.value)
-        bot.delete_message(call.message.chat.id, call.message.id)
-    
+       
     if call.data == "ГГод":
         bot.send_message(call.message.chat.id, text = "Введи компанию")
         dbworker.set_state(call.message.chat.id, config.States.S_GYEAR.value)
-        bot.delete_message(call.message.chat.id, call.message.id)
-"""       
-    @bot.message_handler(content_types=["text"])
-    def company(message):
-       while answer.existence_of_polling == 1:
-            bot.send_message(message.chat.id, text = answer.notification_answer(message.text))
-            time.sleep(10)
-
-def get_company_2day():
-    @bot.message_handler(content_types=["text"])
-    def company(message):
-       while answer.existence_of_polling == 1:
-            bot.send_message(message.chat.id, text = answer.notification_answer(message.text))
-            time.sleep(20)
-
-def get_company_week():
-    @bot.message_handler(content_types=["text"])
-    def company(message):
-       while answer.existence_of_polling == 1:
-            bot.send_message(message.chat.id, text = answer.notification_answer(message.text))
-            time.sleep(30)
-"""
-
+        
+    bot.delete_message(call.message.chat.id, call.message.id)
 
 
 @bot.message_handler(func=lambda message: dbworker.get_current_state(message.chat.id) == config.States.S_RUBLE.value)
@@ -196,10 +160,26 @@ def get_company_ruble(message):
     bot.send_message(message.chat.id, text = answer.quote_answer_ruble(message.text))
     dbworker.set_state(message.chat.id, config.States.S_START.value)
 
+
 @bot.message_handler(func=lambda message: dbworker.get_current_state(message.chat.id) == config.States.S_CURRENCY.value)
 def get_company_currency(message):
     bot.send_message(message.chat.id, text = answer.quote_answer_currency(message.text))
     dbworker.set_state(message.chat.id, config.States.S_START.value)
+
+
+@bot.message_handler(func=lambda message: dbworker.get_current_state(message.chat.id) == config.States.S_COMPANIES.value)
+def company_notification(message):
+    dbworker.set_notification_member(message.chat.id, message.text)
+    bot.send_message(message.chat.id, text = "Введите удобное вам время получения котировок")
+    dbworker.set_state(message.chat.id, config.States.S_TIME.value)
+
+
+@bot.message_handler(func=lambda message: dbworker.get_current_state(message.chat.id) == config.States.S_TIME.value)
+def time_notification(message):
+    dbworker.set_notification_time(message.chat.id, message.text)
+    bot.send_message(message.chat.id, text = "Выбор времени произошел удачно. Ожидайте получения уведомления:)")
+    dbworker.set_state(message.chat.id, config.States.S_START.value)
+
 
 @bot.message_handler(func=lambda message: dbworker.get_current_state(message.chat.id) == config.States.S_GWEEK.value)
 def get_graph_week(message):
@@ -208,12 +188,14 @@ def get_graph_week(message):
         bot.send_photo(message.chat.id, photo = photo)
     dbworker.set_state(message.chat.id, config.States.S_START.value)
 
+
 @bot.message_handler(func=lambda message: dbworker.get_current_state(message.chat.id) == config.States.S_GMONTH.value)
 def get_graph_month(message):
     stock_price_plot.get_month_plot(message.text)
     with open('plot.png', 'rb') as photo:
         bot.send_photo(message.chat.id, photo = photo)   
     dbworker.set_state(message.chat.id, config.States.S_START.value)
+
 
 @bot.message_handler(func=lambda message: dbworker.get_current_state(message.chat.id) == config.States.S_GYEAR.value)
 def get_graph_year(message):
