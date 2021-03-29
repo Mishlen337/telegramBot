@@ -6,6 +6,7 @@ import finance
 from telebot import types
 import stock_price_plot
 import dbworker
+from datetime import datetime
 
 bot = telebot.TeleBot(config.token)
 company = ""
@@ -53,7 +54,6 @@ keyboard_graph.add(button_gweek, button_gmonth, button_gyear)
 def send_welcome(message):
     print(type(message.chat.id))
     bot.reply_to(message, f'Я бот. Подсоеденен пользователь, {message.from_user.first_name}')
-
 
 """ Отправка начальной клавиатуры """
 @bot.message_handler(commands=['start'])
@@ -119,22 +119,20 @@ def callback_quote(call):
 def callback_notification(call):
     """Отправка уведомлений котеровок"""
     if call.data == "День":
-        bot.send_message(call.message.chat.id, text = "Введи компанию")
-        dbworker.set_notification_state(call.message.chat.id, config.NotificationStates.NS_DAY.value)
+        bot.send_message(call.message.chat.id, text = "Введите список компаний, которые хотите добавить в уведомления. Чтобы прератить ввод, напишите: <b>Хватит</b>", parse_mode='html')
         dbworker.set_state(call.message.chat.id, config.States.S_COMPANIES.value)
-
+        dbworker.set_notification_state(call.message.chat.id, config.NotificationStates.NS_DAY.value)
 
     if call.data == "2Дня":
-        bot.send_message(call.message.chat.id, text = "Введи компанию")
-        dbworker.set_notification_state(call.message.chat.id, config.NotificationStates.NS_2DAYS.value)
+        bot.send_message(call.message.chat.id, text = "Введите список компаний, которые хотите добавить в уведомления. Чтобы прератить ввод, напишите: <b>Хватит</b>", parse_mode='html'))
         dbworker.set_state(call.message.chat.id, config.States.S_COMPANIES.value)
-        
+        dbworker.set_notification_state(call.message.chat.id, config.NotificationStates.NS_2DAYS.value)
 
     if call.data == "Неделя":
-        bot.send_message(call.message.chat.id, text = "Введи компанию")
-        dbworker.set_notification_state(call.message.chat.id, config.NotificationStates.NS_WEEK.value)
+        bot.send_message(call.message.chat.id,  text = "Введите список компаний, которые хотите добавить в уведомления. Чтобы прератить ввод, напишите: <b>Хватит</b>", parse_mode='html'))
         dbworker.set_state(call.message.chat.id, config.States.S_COMPANIES.value)
-        
+        dbworker.set_notification_state(call.message.chat.id, config.NotificationStates.NS_WEEK.value)
+
     bot.delete_message(call.message.chat.id, call.message.id)
 
 @bot.callback_query_handler(func = lambda call: dbworker.get_current_state(call.message.chat.id) == config.States.S_GRAPH.value)
@@ -157,52 +155,83 @@ def callback_graph(call):
 
 @bot.message_handler(func=lambda message: dbworker.get_current_state(message.chat.id) == config.States.S_RUBLE.value)
 def get_company_ruble(message):
-    bot.send_message(message.chat.id, text = answer.quote_answer_ruble(message.text))
-    dbworker.set_state(message.chat.id, config.States.S_START.value)
+    try:
+        bot.send_message(message.chat.id, text = answer.quote_answer_ruble(message.text))
+        dbworker.set_state(message.chat.id, config.States.S_START.value)
+    except AttributeError:
+        bot.send_message(message.chat.id, text = 'Упс, похоже вы ввели неправильное название компании. Попробуйте ввести компанию еще раз:(')
 
 
 @bot.message_handler(func=lambda message: dbworker.get_current_state(message.chat.id) == config.States.S_CURRENCY.value)
 def get_company_currency(message):
-    bot.send_message(message.chat.id, text = answer.quote_answer_currency(message.text))
-    dbworker.set_state(message.chat.id, config.States.S_START.value)
-
+    try:
+        bot.send_message(message.chat.id, text = answer.quote_answer_currency(message.text))
+        dbworker.set_state(message.chat.id, config.States.S_START.value)
+    except AttributeError:
+        bot.send_message(message.chat.id, text = 'Упс, похоже вы ввели неправильное название компании. Попробуйте ввести компанию еще раз:(')
 
 @bot.message_handler(func=lambda message: dbworker.get_current_state(message.chat.id) == config.States.S_COMPANIES.value)
 def company_notification(message):
-    dbworker.set_notification_member(message.chat.id, message.text)
-    bot.send_message(message.chat.id, text = "Введите удобное вам время получения котировок")
-    dbworker.set_state(message.chat.id, config.States.S_TIME.value)
+    if message.text!='Хватит':
+        try:
+            dbworker.set_notification_member(message.chat.id, message.text)
+            bot.send_message(message.chat.id, text = 'Отлично. Я запомнил. Может быверем что-то еще или напишите <b>Хватит</b>', parse_mode='HTML')
+        except TypeError:
+            bot.send_message(message.chat.id, text = 'Упс, похоже вы ввели неправильное название компании. Попробуйте ввести компанию еще раз:(')
+    else:
+        notification_list = dbworker.get_notification_list(message.chat.id)
+        if notification_list:
+            bot.send_message(message.chat.id, text = "Выбранный вами список компаний (Название - Биржа)")
+            bot.send_message(message.chat.id, text = notification_list)
+            bot.send_message(message.chat.id, text = "Введите удобное вам время получения котировок")
+            dbworker.set_state(message.chat.id, config.States.S_TIME.value)
+        else: 
+            bot.send_message(message.chat.id, text = '''Кажется вы ничего не выбрали.\n
+                            Введите список компаний, которые хотите добавить в уведомления. 
+                            Чтобы прератить ввод, напишите: <b>Хватит</b> ''')
 
 
 @bot.message_handler(func=lambda message: dbworker.get_current_state(message.chat.id) == config.States.S_TIME.value)
 def time_notification(message):
-    dbworker.set_notification_time(message.chat.id, message.text)
-    bot.send_message(message.chat.id, text = "Выбор времени произошел удачно. Ожидайте получения уведомления:)")
-    dbworker.set_state(message.chat.id, config.States.S_START.value)
+    try: 
+        dbworker.set_notification_time(message.chat.id, datetime.strptime(message.text, "%H:%M"))
+        bot.send_message(message.chat.id, text = "Выбор времени произошел удачно. Ожидайте получения уведомления:)")
+        dbworker.set_state(message.chat.id, config.States.S_START.value)
+    except ValueError:
+        bot.send_message(message.chat.id, text = "Ой, кажется вы ввели неправильное время. Введите удобное вам время еще раз:(")
 
 
 @bot.message_handler(func=lambda message: dbworker.get_current_state(message.chat.id) == config.States.S_GWEEK.value)
 def get_graph_week(message):
-    stock_price_plot.get_week_plot(message.text)
-    with open('plot.png', 'rb') as photo:
-        bot.send_photo(message.chat.id, photo = photo)
-    dbworker.set_state(message.chat.id, config.States.S_START.value)
+    try:
+        stock_price_plot.get_week_plot(message.text)
+        with open('plot.png', 'rb') as photo:
+            bot.send_photo(message.chat.id, photo = photo)
+        dbworker.set_state(message.chat.id, config.States.S_START.value)
+    except KeyError:
+        bot.send_message(message.chat.id, text = 'Упс, похоже вы ввели неправильное название компании. Попробуйте ввести компанию еще раз:(')
 
 
 @bot.message_handler(func=lambda message: dbworker.get_current_state(message.chat.id) == config.States.S_GMONTH.value)
 def get_graph_month(message):
-    stock_price_plot.get_month_plot(message.text)
-    with open('plot.png', 'rb') as photo:
-        bot.send_photo(message.chat.id, photo = photo)   
-    dbworker.set_state(message.chat.id, config.States.S_START.value)
+    try:
+        stock_price_plot.get_month_plot(message.text)
+        with open('plot.png', 'rb') as photo:
+            bot.send_photo(message.chat.id, photo = photo)   
+        dbworker.set_state(message.chat.id, config.States.S_START.value)
+    except KeyError:
+        bot.send_message(message.chat.id, text = 'Упс, похоже вы ввели неправильное название компании. Попробуйте ввести компанию еще раз:(')
 
 
 @bot.message_handler(func=lambda message: dbworker.get_current_state(message.chat.id) == config.States.S_GYEAR.value)
 def get_graph_year(message):
-    stock_price_plot.get_year_plot(message.text)
-    with open('plot.png', 'rb') as photo:
-        bot.send_photo(message.chat.id, photo = photo)   
-    dbworker.set_state(message.chat.id, config.States.S_START.value)
+    try:
+        stock_price_plot.get_year_plot(message.text)
+        with open('plot.png', 'rb') as photo:
+            bot.send_photo(message.chat.id, photo = photo)   
+        dbworker.set_state(message.chat.id, config.States.S_START.value)
+    except KeyError:
+        bot.send_message(message.chat.id, text = 'Упс, похоже вы ввели неправильное название компании. Попробуйте ввести компанию еще раз:(')
 
 if __name__ == '__main__':
     bot.infinity_polling()

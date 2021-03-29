@@ -27,4 +27,4 @@ def parse_currency(currencyname : str) -> str:
     currency = converter.get_rates(currencyname)['RUB']
     return currency
 
-#print(parse_by_stockname("GAZP.ME"))
+#print(parse_by_stockname("AAPL"))
