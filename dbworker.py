@@ -25,6 +25,12 @@ def set_state(user_chat_id, state):
             cur.execute( "INSERT or IGNORE INTO User (user_chat_id, state) VALUES (?,?)", (user_chat_id, state) )
         conn.commit()
 
+def get_notification_state(user_chat_id:int):
+    with sqlite3.connect(config.db_file) as conn:
+        cur = conn.cursor()
+        cur.execute("SELECT notification_state FROM User WHERE user_chat_id = ?", (user_chat_id,))
+        return cur.fetchone()[0]
+
 def set_notification_state(user_chat_id:int, state:int):
     with sqlite3.connect(config.db_file) as conn:
         cur = conn.cursor()
@@ -57,4 +63,40 @@ def get_notification_list(user_chat_id:int):
         rows = cur.fetchall()
         str_query = '\n'.join(map(' - '.join,rows))
         return str_query
-#get_notification_list(4433)
+    
+def get_notification_companies(user_chat_id:int):
+    with sqlite3.connect(config.db_file) as conn:
+        cur = conn.cursor()
+        cur.execute('''SELECT Company.symbol
+                        FROM User JOIN Member JOIN Company JOIN Exchange 
+                        ON Member.user_id = User.id AND Member.company_id = Company.id AND Company.exchange_id = Exchange.id 
+                        WHERE User.user_chat_id = ?''', (user_chat_id,))
+        rows = cur.fetchall()
+        return rows
+#Удаление всех компаний в списке уведомлений
+def delete_all_members(user_chat_id:int):
+    with sqlite3.connect(config.db_file) as conn:
+        cur = conn.cursor()
+        cur.execute("SELECT id FROM User WHERE user_chat_id = ?", (user_chat_id,))
+        user_id = cur.fetchone()[0]
+        cur.execute('''DELETE FROM Member WHERE user_id = ?''', (user_id,)) 
+        conn.commit()
+
+#Удаление выборочных компаний в списке уведомлений
+def delete_selectively_member(user_chat_id:int, company:str):
+    with sqlite3.connect(config.db_file) as conn:
+        cur = conn.cursor()
+        cur.execute("SELECT id FROM Company WHERE symbol = ?", (company,))
+        company_id = cur.fetchone()[0]
+        cur.execute("SELECT id FROM User WHERE user_chat_id = ?", (user_chat_id,))
+        user_id = cur.fetchone()[0]
+
+        #Проверка на существование пары (обрабатывается в bot.py через AttributeError)
+        cur.execute("SELECT * FROM Member WHERE user_id = ? AND company_id = ?", (user_id,company_id))
+        if not cur.fetchone():
+            raise AttributeError
+
+        cur.execute('''DELETE FROM Member WHERE user_id = ? AND company_id = ?''', (user_id,company_id)) 
+        conn.commit()
+
+#delete_selectively_member(547184043,'AAPL')

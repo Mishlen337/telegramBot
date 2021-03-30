@@ -1,7 +1,6 @@
 import plotly.express as px
 import plotly
 from pandas_datareader import data as pdr
-from airium import Airium
 
 import yfinance as yf
 yf.pdr_override()
