@@ -3,7 +3,6 @@ import telebot
 from telebot import types
 import answer
 import time
-import finance
 import stock_price_plot
 import dbworker
 from datetime import datetime
@@ -120,12 +119,33 @@ button_all = types.InlineKeyboardButton(text = "Удалить все", callback
 button_selectively = types.InlineKeyboardButton(text = "Удалить выборочно", callback_data = "УдалитьВыборочно")
 keyboard_delete_companies.add(button_all, button_selectively)
 
+@bot.message_handler(commands=['start'])
+def send_welcome(message):
+    bot.send_message(message.chat.id, text = f'''Добро пожаловать {message.from_user.first_name} {message.from_user.last_name}.\n
+<b>ОБЯЗАТЕЛЬНО прочтите это сообщение перед первым использованием</b>\n
+Давайте я расскажу немного о себе.
+Я умный помошник в сфере акций. Мой функционал заключается в следующем:\n
+1. Прохождение теории по трейдингу и инвестированию\n
+2. Получение котировки акции в разных валютах в реальном времени\n
+3. Построение графика за различные промежутки времени\n
+4. Настройка уведомлений с выбранном списком акций\n
+Чтобы узнать как пользоваться вышеописанными фунциями, напишите <b>/help</b>\n
+<b>Ремарка</b>: В текущей версии меня в поле акции ввода необходим тикер акции, в дальнейшем будет использоваться имя компании, представденной на бирже.
+Для вас кратко пояcню, что такое <b>тикер акции</b>. Тикер акции - краткое название в биржевой информации котируемых инструментов (акций, облигаций, индексов). Является уникальным идентификатором в рамках одной биржи или информационной системы.
+Например: для компнании Apple Inc тикер будет - AAPL\n 
+Список компнании и соответствующие им тикер можете посмотреть на сайте https://finance.yahoo.com/trending-tickers''', parse_mode='HTML')
 @bot.message_handler(commands=['help'])
 def send_welcome(message):
-    bot.reply_to(message, f'Я бот. Подсоеденен пользователь, {message.from_user.first_name}')
+    bot.send_message(message.chat.id, text = '''Вы зашли в режим помощи.\n
+1. Чтобы выбрать выбрать мой функционал напишите <b>/set</b>\n
+2. Чтобы вернуться к выбору функционала напишите  <b>/reset</b>\n
+3. Чтобы изменить список компаний, входящих в уведомления или отменить посылку уведомлений напишите <b>/settings</b>\n
+В случае неиспровностей, вопросов и предложениий обращайтесь к Исакову Михаилу - @mishlen25
+Удачного вам изучения мира акций:)''', parse_mode='html')
+
 
 """ Отправка начальной клавиатуры """
-@bot.message_handler(commands=['start'])
+@bot.message_handler(commands=['set'])
 def start_handler(message):
     bot.send_message(message.chat.id, text = "Выберите опцию", reply_markup=keyboard_primary)
     dbworker.set_state(message.chat.id, config.States.S_PRIMARY.value)
@@ -234,7 +254,7 @@ def callback_settings(call):
         notification_list = dbworker.get_notification_list(call.message.chat.id)
         if notification_list:
             bot.delete_message(call.message.chat.id, call.message.id)
-            bot.send_message(call.message.chat.id, text = "Выбранный вами список компаний (Название - Биржа)")
+            bot.send_message(call.message.chat.id, text = "Выбранный вами список компаний (Название - Тикер - Биржа)")
             bot.send_message(call.message.chat.id, text = notification_list)
             bot.send_message(call.message.chat.id, text = "Выберите тип изменения", reply_markup = keyboard_change_companies)
             dbworker.set_state(call.message.chat.id, config.States.S_CHANGE_COMPANIES.value)
@@ -255,7 +275,7 @@ def callback_settings(call):
             dbworker.set_notification_state(call.message.chat.id, config.NotificationStates.NS_NONE.value)
             dbworker.set_state(call.message.chat.id, config.States.S_START.value)
         except apscheduler.jobstores.base.JobLookupError:
-            bot.send_message(call.message.chat.id, text = "У вас нет выбранных уведомлений:( Можете настроить их используя <b>/start</b>", parse_mode='html')
+            bot.send_message(call.message.chat.id, text = "У вас нет выбранных уведомлений:( Можете настроить их используя <b>/set</b>", parse_mode='html')
             dbworker.set_state(call.message.chat.id, config.States.S_START.value)
 
 @bot.callback_query_handler(func = lambda call: dbworker.get_current_state(call.message.chat.id) == config.States.S_CHANGE_COMPANIES.value)
@@ -281,6 +301,11 @@ def callback_deletion(call):
         bot.send_message(call.message.chat.id,  text = '''Введите список компаний, которые хотите удалить. Чтобы прекратить ввод для удаления, напишите: <b>Хватит</b>''', parse_mode='HTML')
         dbworker.set_state(call.message.chat.id, config.States.S_DELETE_SELECTIVELY.value)
 
+@bot.message_handler(func=lambda message: dbworker.get_current_state(message.chat.id) == config.States.S_START.value)
+def handle_start_state(message):
+    bot.send_message(message.chat.id, text = '''Вы находитесь в начальном состоянии, напишите команду, чтобы начать взаимодействовать со мной.\n
+Чтобы узнать, что я умею, напишите команду <b>/start</b>\n
+Чтобы узнать какие команды использовать напишите команду <b>/help</b>''', parse_mode='HTML')
 
 @bot.message_handler(func=lambda message: dbworker.get_current_state(message.chat.id) == config.States.S_RUBLE.value)
 def get_company_ruble(message):
@@ -310,14 +335,14 @@ def company_notification(message):
     else:
         notification_list = dbworker.get_notification_list(message.chat.id)
         if notification_list:
-            bot.send_message(message.chat.id, text = "Выбранный вами список компаний (Название - Биржа)")
+            bot.send_message(message.chat.id, text = "Выбранный вами список компаний (Название - Тикер - Биржа)")
             bot.send_message(message.chat.id, text = notification_list)
             bot.send_message(message.chat.id, text = "Введите удобное вам время получения котировок")
             dbworker.set_state(message.chat.id, config.States.S_TIME.value)
         else: 
             bot.send_message(message.chat.id, text = '''Кажется вы ничего не выбрали.\n
-                            Введите список компаний, которые хотите добавить в уведомления. 
-                            Чтобы прератить ввод, напишите: <b>Хватит</b> ''')
+Введите список компаний, которые хотите добавить в уведомления.\n
+Чтобы прератить ввод, напишите: <b>Хватит</b>''', parse_mode='HTML')
 
 
 @bot.message_handler(func=lambda message: dbworker.get_current_state(message.chat.id) == config.States.S_TIME.value)
@@ -338,7 +363,7 @@ def time_notification(message):
         bot.send_message(message.chat.id, text = "Выбор времени произошел удачно. Ожидайте получения уведомления:)")
         dbworker.set_state(message.chat.id, config.States.S_START.value)
     except apscheduler.jobstores.base.ConflictingIdError:
-        bot.send_message(message.chat.id, text = '''Вы уже выбрали уведомление на время {вставить время} раз {вствить переодичность}. Если хотите поменять настройки напишите <b>/settings</b>''', parse_mode = 'HTML')
+        bot.send_message(message.chat.id, text = '''Вы уже выбрали уведомление на время {вставить время} раз {вствить периодичность}. Если хотите поменять настройки напишите <b>/settings</b>''', parse_mode = 'HTML')
         dbworker.set_state(message.chat.id, config.States.S_START.value)
    
 
@@ -385,13 +410,13 @@ def company_add(message):
     else:
         notification_list = dbworker.get_notification_list(message.chat.id)
         if notification_list:
-            bot.send_message(message.chat.id, text = "Выбранный вами список компаний (Название - Биржа)")
+            bot.send_message(message.chat.id, text = "Выбранный вами список компаний (Название - Тикер - Биржа)")
             bot.send_message(message.chat.id, text = notification_list)
             dbworker.set_state(message.chat.id, config.States.S_START.value)
         else: 
             bot.send_message(message.chat.id, text = '''Кажется вы ничего не выбрали.\n
-                            Введите список компаний, которые хотите добавить в уведомления. 
-                            Чтобы прератить ввод, напишите: <b>Хватит</b>''', parse_mode='HTML')
+Введите список компаний, которые хотите добавить в уведомления.\n
+Чтобы прератить ввод, напишите: <b>Хватит</b>''', parse_mode='HTML')
 
 @bot.message_handler(func=lambda message: dbworker.get_current_state(message.chat.id) == config.States.S_DELETE_SELECTIVELY.value)
 def company_delete_selectively(message):
@@ -406,7 +431,7 @@ def company_delete_selectively(message):
     else:
         notification_list = dbworker.get_notification_list(message.chat.id)
         if notification_list:
-            bot.send_message(message.chat.id, text = "Измененный вами список компаний (Название - Биржа)")
+            bot.send_message(message.chat.id, text = "Измененный вами список компаний (Название - Тикер - Биржа)")
             bot.send_message(message.chat.id, text = notification_list)
         else: 
             bot.send_message(message.chat.id, text = '''Кажется вы удалили все компании в вашем списке:( Вы знаете, где их настроить в случае чего:)''')

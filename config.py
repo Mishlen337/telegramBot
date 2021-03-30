@@ -1,7 +1,7 @@
 from enum import Enum, auto
 token ="1401737274:AAEr9_QYkCH5sblgCyZR2LHTtmqImFICaSY"
 apikey = "89e10c73fe9cded3764526c1566fe4cb"
-db_file = "./Users.db"
+db_file = "./telegramBot/Users.db"
 url_begining = 'https://finance.yahoo.com/quote/'
 class States(Enum):
     S_START = 0 # Начало нового диалога

@@ -56,7 +56,7 @@ def set_notification_member(user_chat_id:int, company:str):
 def get_notification_list(user_chat_id:int):
     with sqlite3.connect(config.db_file) as conn:
         cur = conn.cursor()
-        cur.execute('''SELECT Company.name, Exchange.name 
+        cur.execute('''SELECT Company.name, Exchange.name, Company.symbol 
                         FROM User JOIN Member JOIN Company JOIN Exchange 
                         ON Member.user_id = User.id AND Member.company_id = Company.id AND Company.exchange_id = Exchange.id 
                         WHERE User.user_chat_id = ?''', (user_chat_id,))
