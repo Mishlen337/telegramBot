@@ -113,4 +113,3 @@ def get_company_ticker(name:str)->str:
         cur.execute("SELECT symbol FROM Company WHERE name = ?",(name,))
         ticker = cur.fetchone()[0]
     return ticker
-#print(get_company_ticker('Apple '))

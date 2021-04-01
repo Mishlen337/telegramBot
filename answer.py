@@ -17,13 +17,13 @@ def quote_answer_ruble(company):
     
 def quote_answer_currency(company):
     val, currency = stock_parse.parse_by_stockname(company)
-    return f'Компания: {company} стоит {val} {currency}'
+    return f'Компания: {company} стоит {val:.2f} {currency}'
         
 
     #@classmethod
 def notification_answer(self,company):
     val, currency = stock_parse.parse_by_stockname(company)
-    return f'Компания: {company} стоит {val} {currency}'
+    return f'Компания: {company} стоит {val:.2f} {currency}'
     
 
 

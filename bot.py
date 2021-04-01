@@ -28,7 +28,7 @@ class Notification():
     def __init__(self):
         self.scheduler = BackgroundScheduler()
         jobstores = {
-            'default': SQLAlchemyJobStore(url='sqlite:///jobs2.sqlite')
+            'default': SQLAlchemyJobStore(url=f'sqlite:///{config.notification_db_path}')
             }
         executors = {
                 'default': {'type': 'threadpool', 'max_workers': 20},
@@ -156,10 +156,18 @@ def query_text(query):
 
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
-    bot.send_message(message.chat.id, text = f'''Добро пожаловать {message.from_user.first_name} {message.from_user.last_name}.\n
-<b>ОБЯЗАТЕЛЬНО прочтите это сообщение перед первым использованием</b>\n
+    if not message.from_user.first_name and not message.from_user.last_name:
+        bot.send_message(message.chat.id, text = f'''Добро пожаловать.''')
+    elif not message.from_user.first_name and message.from_user.last_name: 
+        bot.send_message(message.chat.id, text = f'''Добро пожаловать {message.from_user.last_name}.''')
+    elif message.from_user.first_name and not message.from_user.last_name: 
+        bot.send_message(message.chat.id, text = f'''Добро пожаловать {message.from_user.first_name}.''')
+    else:
+        bot.send_message(message.chat.id, text = f'''Добро пожаловать {message.from_user.first_name} {message.from_user.last_name}.''')
+
+    bot.send_message(message.chat.id, text = '''<b>ОБЯЗАТЕЛЬНО прочтите это сообщение перед первым использованием</b>\n
 Давайте я расскажу немного о себе.
-Я умный помошник в сфере акций. Мой функционал заключается в следующем:\n
+Я умный помощник в сфере акций. Мой функционал заключается в следующем:\n
 1. Прохождение теории по трейдингу и инвестированию\n
 2. Получение котировки акции в разных валютах в реальном времени\n
 3. Построение графика за различные промежутки времени\n
@@ -168,8 +176,8 @@ def send_welcome(message):
 
 @bot.message_handler(commands=['help'])
 def send_welcome(message):
-    bot.send_message(message.chat.id, text = '''Вы зашли в режим помощи.ляллял\n
-1. Чтобы выбрать выбрать мой функционал напишите <b>/set</b>\n
+    bot.send_message(message.chat.id, text = '''Вы зашли в режим помощи.\n
+1. Чтобы выбрать мой функционал напишите <b>/set</b>\n
 2. Чтобы изменить список компаний, входящих в уведомления или отменить посылку уведомлений напишите <b>/settings</b>\n
 В случае неиспровностей, вопросов и предложениий обращайтесь к Исакову Михаилу - @mishlen25''', parse_mode='html')
     bot.send_message(message.chat.id, text = 'Выберите команду', reply_markup = keyboard_help)
@@ -183,8 +191,8 @@ def start_handler(message):
 
 @bot.message_handler(commands=['settings'])
 def send_welcome(message):
-    bot.reply_to(message, 'Что ж, давайте поменяем настройки')
-    bot.send_message(message.chat.id, text = "Выберите опцию", reply_markup=keyboard_settings)
+    bot.send_message(message.chat.id, 'Что ж, давайте поменяем настройки')
+    bot.send_message(message.chat.id, text = "Выберите настройку", reply_markup=keyboard_settings)
     dbworker.set_state(message.chat.id, config.States.S_SETTINGS.value)
     bot.delete_message(message.chat.id, message.id)
 
@@ -199,7 +207,7 @@ def callback_primary(call):
         dbworker.set_state(call.message.chat.id, config.States.S_QUOTE.value)
 
     if call.data == "Уведомление":
-        if not dbworker.get_notification_state:
+        if not (dbworker.get_notification_state(call.message.chat.id) == 0):
             bot.delete_message(call.message.chat.id, call.message.id)
             bot.send_message(call.message.chat.id, text = '''Вы уже выбрали уведомление на время  раз {вствить периодичность}. Если хотите поменять настройки напишите <b>/settings</b>''', parse_mode = 'HTML')
             dbworker.set_state(call.message.chat.id, config.States.S_START.value)
@@ -321,6 +329,11 @@ def callback_settings(call):
             dbworker.set_state(call.message.chat.id, config.States.S_ADD_COMPANIES.value)
     
     if call.data == "НУведомления":
+        if dbworker.get_notification_state(call.message.chat.id) == 0:
+            bot.delete_message(call.message.chat.id, call.message.id)
+            bot.send_message(call.message.chat.id, text = "У вас нет выбранных уведомлений:( Можете настроить их используя <b>/set</b>", parse_mode='html')
+            dbworker.set_state(call.message.chat.id, config.States.S_START.value)
+            return
         try:
             bot.delete_message(call.message.chat.id, call.message.id)
             notification.delete_notification(call.message.chat.id)
@@ -328,8 +341,9 @@ def callback_settings(call):
             dbworker.set_notification_state(call.message.chat.id, config.NotificationStates.NS_NONE.value)
             dbworker.set_state(call.message.chat.id, config.States.S_START.value)
         except apscheduler.jobstores.base.JobLookupError:
-            bot.send_message(call.message.chat.id, text = "У вас нет выбранных уведомлений:( Можете настроить их используя <b>/set</b>", parse_mode='html')
+            bot.send_message(call.message.chat.id, text = '''Упс, что-то пошло не так. Напишите об этом @mishlen25. Произошло несоответствие данных в базе данных уведомлений и базе данных пользователей''', parse_mode = 'HTML')
             dbworker.set_state(call.message.chat.id, config.States.S_START.value)
+
 
 @bot.callback_query_handler(func = lambda call: dbworker.get_current_state(call.message.chat.id) == config.States.S_CHANGE_COMPANIES.value)
 def callback_changing(call):
@@ -387,7 +401,7 @@ def company_notification(message):
     if message.text!='Хватит':
         try:
             dbworker.set_notification_member(message.chat.id, message.text)
-            bot.send_message(message.chat.id, text = 'Отлично. Я запомнил. Может быверем что-то еще или напишите <b>Хватит</b>', parse_mode='HTML')
+            bot.send_message(message.chat.id, text = 'Отлично. Я запомнил. Может выберем что-то еще или напишите <b>Хватит</b>', parse_mode='HTML')
         except TypeError:
             bot.send_message(message.chat.id, text = 'Упс, похоже вы ввели неправильное название компании. Попробуйте ввести название компании еще раз:(')
     else:
@@ -432,7 +446,7 @@ def get_graph_week(message):
         with open(f"{config.image_path}/{message.chat.id}.png", 'rb') as photo:
             bot.send_photo(message.chat.id, photo = photo)
         dbworker.set_state(message.chat.id, config.States.S_START.value)
-    except KeyError:
+    except TypeError:
         bot.send_message(message.chat.id, text = 'Упс, похоже вы ввели неправильное название компании. Попробуйте ввести название компании еще раз:(')
 
 
@@ -443,7 +457,7 @@ def get_graph_month(message):
         with open(f"{config.image_path}/{message.chat.id}.png", 'rb') as photo:
             bot.send_photo(message.chat.id, photo = photo)   
         dbworker.set_state(message.chat.id, config.States.S_START.value)
-    except KeyError:
+    except TypeError:
         bot.send_message(message.chat.id, text = 'Упс, похоже вы ввели неправильное название компании. Попробуйте ввести название компании еще раз:(')
 
 
@@ -454,7 +468,7 @@ def get_graph_year(message):
         with open(f"{config.image_path}/{message.chat.id}.png", 'rb') as photo:
             bot.send_photo(message.chat.id, photo = photo)   
         dbworker.set_state(message.chat.id, config.States.S_START.value)
-    except KeyError:
+    except TypeError:
         bot.send_message(message.chat.id, text = 'Упс, похоже вы ввели неправильное название компании. Попробуйте ввести название компании еще раз:(')
 
 @bot.message_handler(func=lambda message: dbworker.get_current_state(message.chat.id) == config.States.S_ADD_COMPANIES.value)
@@ -462,7 +476,7 @@ def company_add(message):
     if message.text!='Хватит':
         try:
             dbworker.set_notification_member(message.chat.id, message.text)
-            bot.send_message(message.chat.id, text = 'Отлично. Я запомнил. Может быверем что-то еще или напишите <b>Хватит</b>', parse_mode='HTML')
+            bot.send_message(message.chat.id, text = 'Отлично. Я запомнил. Может выберем что-то еще или напишите <b>Хватит</b>', parse_mode='HTML')
         except TypeError:
             bot.send_message(message.chat.id, text = 'Упс, похоже вы ввели неправильное название компании. Попробуйте ввести название компании еще раз:(')
     else:
