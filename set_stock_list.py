@@ -17,7 +17,7 @@ def list_companies():
                 cur.execute("INSERT OR IGNORE INTO Exchange (name) VALUES (?)", (company['exchange'],) )
                 cur.execute("SELECT id FROM Exchange WHERE name = ?", (company['exchange'],))
                 exchange_id = cur.fetchone()[0]
-                cur.execute( "INSERT OR IGNORE INTO Company (symbol, name, exchange_id) VALUES (?,?,?)", (company['symbol'], company['name'], exchange_id) )
+                cur.execute( "INSERT OR IGNORE INTO Company2 (symbol, name, exchange_id) VALUES (?,?,?)", (company['symbol'], company['name'], exchange_id) )
                 exchange_dict.setdefault(company['exchange'], 0)
                 exchange_dict[company['exchange']] += 1
             except KeyError:
