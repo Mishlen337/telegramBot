@@ -165,7 +165,6 @@ def send_welcome(message):
 3. Построение графика за различные промежутки времени\n
 4. Настройка уведомлений с выбранном списком акций\n
 Чтобы узнать как пользоваться вышеописанными фунциями, напишите <b>/help</b>''', parse_mode='HTML')
-    bot.send_message(message.chat.id, text = 'Выберите опцию', reply_markup = keyboard_help)
 
 @bot.message_handler(commands=['help'])
 def send_welcome(message):
@@ -173,7 +172,7 @@ def send_welcome(message):
 1. Чтобы выбрать выбрать мой функционал напишите <b>/set</b>\n
 2. Чтобы изменить список компаний, входящих в уведомления или отменить посылку уведомлений напишите <b>/settings</b>\n
 В случае неиспровностей, вопросов и предложениий обращайтесь к Исакову Михаилу - @mishlen25''', parse_mode='html')
-
+    bot.send_message(message.chat.id, text = 'Выберите команду', reply_markup = keyboard_help)
 
 """ Отправка начальной клавиатуры """
 @bot.message_handler(commands=['set'])
