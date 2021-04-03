@@ -6,10 +6,14 @@ import time
 import stock_price_plot
 import dbworker
 from datetime import datetime
-
+from datetime import timedelta
+from dateutil.relativedelta import relativedelta
+from tzlocal import get_localzone
+import dateutil.tz
 import threading
 
-from pytz import utc
+import pytz
+
 import time
 import apscheduler
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -32,15 +36,14 @@ class Notification():
             }
         executors = {
                 'default': {'type': 'threadpool', 'max_workers': 20},
-                'processpool': ProcessPoolExecutor(max_workers=5)
+                'processpool': ProcessPoolExecutor(max_workers=20)
             }
         job_defaults = {
                 'coalesce': False,
-                'max_instances': 3
+                'max_instances': 20
             }
 
-        self.scheduler.configure(jobstores=jobstores, executors=executors, job_defaults=job_defaults, timezone=utc)
-
+        self.scheduler.configure(jobstores=jobstores, executors=executors, job_defaults=job_defaults)
     def run_notification(self):
         self.scheduler.start()
         try:
@@ -51,28 +54,28 @@ class Notification():
             print('exeption')
                 # Not strictly necessary if daemonic mode is enabled but should be done if possible
             self.scheduler.shutdown()
-    
-    def add_notification_day(self, user_chat_id:int, time:str):
-        self.scheduler.add_job(send_notification, 'interval', minutes=1, id=str(user_chat_id), args = [user_chat_id,])
 
-    def add_notification_2days(self, user_chat_id:int, time:str):
-        self.scheduler.add_job(send_notification, 'interval', minutes=2, id=str(user_chat_id), args = [user_chat_id,])
+    def add_notification_day(self, user_chat_id:int, user_time:str):
+        self.scheduler.add_job(send_notification, 'interval', days = 1, start_date = user_time, id=str(user_chat_id), jitter=40, args = [user_chat_id,])
 
-    def add_notification_week(self, user_chat_id:int, time:str):
-        self.scheduler.add_job(send_notification, 'interval', minutes=3, id=str(user_chat_id), args = [user_chat_id,])
+    def add_notification_2days(self, user_chat_id:int, user_time:str):
+        self.scheduler.add_job(send_notification, 'interval', days = 2, start_date = user_time, id=str(user_chat_id), jitter=40, args = [user_chat_id,])
+
+    def add_notification_week(self, user_chat_id:int, user_time:str):
+        self.scheduler.add_job(send_notification, 'interval', weeks = 1, start_date = user_time, id=str(user_chat_id), jitter=40, args = [user_chat_id,])
     
     def delete_notification(self, user_chat_id:int):
         self.scheduler.remove_job(str(user_chat_id))
+        
+notification = Notification()
 
-notification = Notification()   
 
+""" Инициализация клавиатуры помощи комманд"""
 keyboard_help = types.ReplyKeyboardMarkup(row_width=3)
 button_set = types.KeyboardButton('/set')
 button_settings = types.KeyboardButton('/settings')
 button_help = types.KeyboardButton('/help')
 keyboard_help.add(button_set,button_settings,button_help)
-
-
 
 
 """ Инициализация начальной клавиатуры """
@@ -207,13 +210,16 @@ def callback_primary(call):
         dbworker.set_state(call.message.chat.id, config.States.S_QUOTE.value)
 
     if call.data == "Уведомление":
-        if not (dbworker.get_notification_state(call.message.chat.id) == 0):
-            bot.delete_message(call.message.chat.id, call.message.id)
-            bot.send_message(call.message.chat.id, text = '''Вы уже выбрали уведомление на время  раз {вствить периодичность}. Если хотите поменять настройки напишите <b>/settings</b>''', parse_mode = 'HTML')
-            dbworker.set_state(call.message.chat.id, config.States.S_START.value)
-            return
-        bot.send_message(call.message.chat.id, text = "Выберите периодичность", reply_markup = keyboard_notification)
-        dbworker.set_state(call.message.chat.id, config.States.S_NOTIFICATION.value)
+        notification_state = dbworker.get_notification_state(call.message.chat.id)
+        if notification_state == 1:
+            bot.send_message(call.message.chat.id, text = f"У вас уже выбрано уведомление на {dbworker.get_notification_time(call.message.chat.id)} раз в день.")
+        elif notification_state == 2:
+            bot.send_message(call.message.chat.id, text = f"У вас уже выбрано уведомление на {dbworker.get_notification_time(call.message.chat.id)} раз в 2 дня.")
+        elif notification_state == 3:
+            bot.send_message(call.message.chat.id, text = f"У вас уже выбрано уведомление на {dbworker.get_notification_time(call.message.chat.id)} раз в неделю.")  
+        else:
+            bot.send_message(call.message.chat.id, text = "Выберите периодичность", reply_markup = keyboard_notification)
+            dbworker.set_state(call.message.chat.id, config.States.S_NOTIFICATION.value)
         
     if call.data == "График":
         bot.send_message(call.message.chat.id, text = "Выберите периодичность", reply_markup = keyboard_graph)
@@ -252,47 +258,18 @@ def callback_quote(call):
 def callback_notification(call):
     """Отправка уведомлений котеровок"""
     if call.data == "День":
-        notification_list = dbworker.get_notification_list(call.message.chat.id)
-        if notification_list:
-            bot.delete_message(call.message.chat.id, call.message.id)
-            bot.send_message(call.message.chat.id, text = "Выбранный вами ранее список компаний (Название - Тикер - Биржа)")
-            bot.send_message(call.message.chat.id, text = notification_list)
-            bot.send_message(call.message.chat.id, text = '''Введите список компаний, которые хотите добавить. Чтобы получить подсказку напишите: @IMStockBot, затем пробел и затем начните вводить название. Список существующих компаний будет предложен выше:) Чтобы прекратить ввод или оставить текущий список компаний, напишите: <b>Хватит</b>''', parse_mode='html')
-        else: 
-            bot.delete_message(call.message.chat.id, call.message.id)
-            bot.send_message(call.message.chat.id, text = '''У вас нет выбранных ранее компаний. Давайте добавим несколько:)\n
-Введите список компаний, которые хотите добавить. Чтобы получить подсказку напишите: @IMStockBot, затем пробел и затем начните вводить название. Список существующих компаний будет предложен выше:) Чтобы прекратить ввод, напишите: <b>Хватит</b>''', parse_mode='html')
-        dbworker.set_state(call.message.chat.id, config.States.S_COMPANIES.value)
-        dbworker.set_notification_state(call.message.chat.id, config.NotificationStates.NS_DAY.value)
-
+        bot.send_message(call.message.chat.id, text = "Введите удобное для вас время получения котировок акций в следующем формате: <b>hh:mm</b>",parse_mode='HTML')
+        dbworker.set_state(call.message.chat.id, config.States.S_TIME_DAY.value)
+ 
     if call.data == "2Дня":
-        notification_list = dbworker.get_notification_list(call.message.chat.id)
-        if notification_list:
-            bot.delete_message(call.message.chat.id, call.message.id)
-            bot.send_message(call.message.chat.id, text = "Выбранный вами ранее список компаний (Название - Тикер - Биржа)")
-            bot.send_message(call.message.chat.id, text = notification_list)
-            bot.send_message(call.message.chat.id, text = '''Введите список компаний, которые хотите добавить. Чтобы получить подсказку напишите: @IMStockBot, затем пробел и затем начните вводить название. Список существующих компаний будет предложен выше:) Чтобы прекратить ввод или оставить текущий список компаний, напишите: <b>Хватит</b>''', parse_mode='html')        
-        else: 
-            bot.delete_message(call.message.chat.id, call.message.id)
-            bot.send_message(call.message.chat.id, text = '''У вас нет выбранных ранее компаний. Давайте добавим несколько:)\n
-Введите список компаний, которые хотите добавить. Чтобы получить подсказку напишите: @IMStockBot, затем пробел и затем начните вводить название. Список существующих компаний будет предложен выше:) Чтобы прекратить ввод, напишите: <b>Хватит</b>''', parse_mode='html')        
-        dbworker.set_state(call.message.chat.id, config.States.S_COMPANIES.value)
-        dbworker.set_notification_state(call.message.chat.id, config.NotificationStates.NS_2DAYS.value)
+        bot.send_message(call.message.chat.id, text = "Введите удобное для вас время получения котировок акций в следующем формате: <b>hh:mm</b>",parse_mode='HTML')
+        dbworker.set_state(call.message.chat.id, config.States.S_TIME_2DAYS.value)
 
     if call.data == "Неделя":
-        notification_list = dbworker.get_notification_list(call.message.chat.id)
-        if notification_list:
-            bot.delete_message(call.message.chat.id, call.message.id)
-            bot.send_message(call.message.chat.id, text = "Выбранный вами ранее список компаний (Название - Тикер - Биржа)")
-            bot.send_message(call.message.chat.id, text = notification_list)
-            bot.send_message(call.message.chat.id, text = '''Введите список компаний, которые хотите добавить. Чтобы получить подсказку напишите: @IMStockBot, затем пробел и затем начните вводить название. Список существующих компаний будет предложен выше:) Чтобы прекратить ввод или оставить текущий список компаний, напишите: <b>Хватит</b>''', parse_mode='html')        
-        else: 
-            bot.delete_message(call.message.chat.id, call.message.id)
-            bot.send_message(call.message.chat.id, text = '''У вас нет выбранных ранее компаний. Давайте добавим несколько:)\n
-Введите список компаний, которые хотите добавить. Чтобы получить подсказку напишите: @IMStockBot, затем пробел и затем начните вводить название. Список существующих компаний будет предложен выше:) Чтобы прекратить ввод, напишите: <b>Хватит</b>''', parse_mode='html')        
-        dbworker.set_state(call.message.chat.id, config.States.S_COMPANIES.value)
-        dbworker.set_notification_state(call.message.chat.id, config.NotificationStates.NS_WEEK.value)
+        bot.send_message(call.message.chat.id, text = "Введите удобное для вас время получения котировок акций в следующем формате: <b>hh:mm</b>",parse_mode='HTML')
+        dbworker.set_state(call.message.chat.id, config.States.S_TIME_WEEK.value)
 
+    bot.delete_message(call.message.chat.id, call.message.id)
     
 
 @bot.callback_query_handler(func = lambda call: dbworker.get_current_state(call.message.chat.id) == config.States.S_GRAPH.value)
@@ -329,19 +306,15 @@ def callback_settings(call):
             dbworker.set_state(call.message.chat.id, config.States.S_ADD_COMPANIES.value)
     
     if call.data == "НУведомления":
-        if dbworker.get_notification_state(call.message.chat.id) == 0:
+        if not dbworker.get_notification_state(call.message.chat.id):
             bot.delete_message(call.message.chat.id, call.message.id)
             bot.send_message(call.message.chat.id, text = "У вас нет выбранных уведомлений:( Можете настроить их используя <b>/set</b>", parse_mode='html')
             dbworker.set_state(call.message.chat.id, config.States.S_START.value)
-            return
-        try:
+        else:
             bot.delete_message(call.message.chat.id, call.message.id)
             notification.delete_notification(call.message.chat.id)
-            bot.send_message(call.message.chat.id, text = "Уведомление было успешно удалено:)")
             dbworker.set_notification_state(call.message.chat.id, config.NotificationStates.NS_NONE.value)
-            dbworker.set_state(call.message.chat.id, config.States.S_START.value)
-        except apscheduler.jobstores.base.JobLookupError:
-            bot.send_message(call.message.chat.id, text = '''Упс, что-то пошло не так. Напишите об этом @mishlen25. Произошло несоответствие данных в базе данных уведомлений и базе данных пользователей''', parse_mode = 'HTML')
+            bot.send_message(call.message.chat.id, text = "Уведомление было успешно удалено:)")
             dbworker.set_state(call.message.chat.id, config.States.S_START.value)
 
 
@@ -396,6 +369,77 @@ def get_company_currency(message):
         bot.send_message(message.chat.id, text = 'Упс, что-то пошло не так. Напишите об этом @mishlen25. Произошло несоответствие базы данных компаний с существующими компаниями в yahoo.finance')
 
 
+@bot.message_handler(func=lambda message: dbworker.get_current_state(message.chat.id) == config.States.S_TIME_DAY.value)
+def time_notification_day(message):
+    try: 
+        user_time = datetime.strptime(message.text, "%H:%M")
+        user_time = datetime.today().replace(hour = user_time.hour, minute=user_time.minute, second= 0)
+        dbworker.set_notification_time(message.chat.id, user_time)
+    except ValueError:
+        bot.send_message(message.chat.id, text = "Ой, кажется вы ввели неправильное время. Введите удобное для вас время еще раз:(")
+        return
+    notification.add_notification_day(message.chat.id, user_time)
+    dbworker.set_notification_state(message.chat.id, config.NotificationStates.NS_DAY.value)
+    dbworker.set_notification_time(message.chat.id, message.text)
+    bot.send_message(message.chat.id, text = "Выбор времени произошел удачно. Выберите список компаний, которые хотите добавить в уведомление.")
+    notification_list = dbworker.get_notification_list(message.chat.id)
+    if notification_list:
+        bot.send_message(message.chat.id, text = "Выбранный вами ранее список компаний (Название - Тикер - Биржа)")
+        bot.send_message(message.chat.id, text = notification_list)
+        bot.send_message(message.chat.id, text = '''Введите список компаний, которые хотите добавить. Чтобы получить подсказку напишите: @IMStockBot, затем пробел и затем начните вводить название. Список существующих компаний будет предложен выше:) Чтобы прекратить ввод или оставить текущий список компаний, напишите: <b>Хватит</b>''', parse_mode='html')
+    else: 
+        bot.send_message(message.chat.id, text = '''У вас нет выбранных ранее компаний. Давайте добавим несколько:)\n
+Введите список компаний, которые хотите добавить. Чтобы получить подсказку напишите: @IMStockBot, затем пробел и затем начните вводить название. Список существующих компаний будет предложен выше:) Чтобы прекратить ввод, напишите: <b>Хватит</b>''', parse_mode='html')
+
+    dbworker.set_state(message.chat.id, config.States.S_COMPANIES.value)
+
+@bot.message_handler(func=lambda message: dbworker.get_current_state(message.chat.id) == config.States.S_TIME_2DAYS.value)
+def time_notification_2days(message):
+    try: 
+        user_time = datetime.strptime(message.text, "%H:%M")
+        user_time = datetime.today().replace(hour = user_time.hour, minute=user_time.minute, second= 0)
+        dbworker.set_notification_time(message.chat.id, user_time)
+    except ValueError:
+        bot.send_message(message.chat.id, text = "Ой, кажется вы ввели неправильное время. Введите удобное для вас время еще раз:(")
+        return
+    notification.add_notification_2days(message.chat.id, user_time)
+    dbworker.set_notification_state(message.chat.id, config.NotificationStates.NS_2DAYS.value)
+    dbworker.set_notification_time(message.chat.id, message.text)
+    bot.send_message(message.chat.id, text = "Выбор времени произошел удачно. Выберите список компаний, которые хотите добавить в уведомление.")
+    notification_list = dbworker.get_notification_list(message.chat.id)
+    if notification_list:
+        bot.send_message(message.chat.id, text = "Выбранный вами ранее список компаний (Название - Тикер - Биржа)")
+        bot.send_message(message.chat.id, text = notification_list)
+        bot.send_message(message.chat.id, text = '''Введите список компаний, которые хотите добавить. Чтобы получить подсказку напишите: @IMStockBot, затем пробел и затем начните вводить название. Список существующих компаний будет предложен выше:) Чтобы прекратить ввод или оставить текущий список компаний, напишите: <b>Хватит</b>''', parse_mode='html')
+    else: 
+        bot.send_message(message.chat.id, text = '''У вас нет выбранных ранее компаний. Давайте добавим несколько:)\n
+Введите список компаний, которые хотите добавить. Чтобы получить подсказку напишите: @IMStockBot, затем пробел и затем начните вводить название. Список существующих компаний будет предложен выше:) Чтобы прекратить ввод, напишите: <b>Хватит</b>''', parse_mode='html')
+
+    dbworker.set_state(message.chat.id, config.States.S_COMPANIES.value)
+
+@bot.message_handler(func=lambda message: dbworker.get_current_state(message.chat.id) == config.States.S_TIME_WEEK.value)
+def time_notification_week(message):
+    try: 
+        user_time = datetime.strptime(message.text, "%H:%M")
+        user_time = datetime.today().replace(hour = user_time.hour, minute=user_time.minute, second= 0)
+        dbworker.set_notification_time(message.chat.id, user_time)
+    except ValueError:
+        bot.send_message(message.chat.id, text = "Ой, кажется вы ввели неправильное время. Введите удобное для вас время еще раз:(")
+        return
+    notification.add_notification_week(message.chat.id, user_time)
+    dbworker.set_notification_state(message.chat.id, config.NotificationStates.NS_WEEK.value)
+    dbworker.set_notification_time(message.chat.id, message.text)
+    bot.send_message(message.chat.id, text = "Выбор времени произошел удачно. Выберите список компаний, которые хотите добавить в уведомление.")
+    notification_list = dbworker.get_notification_list(message.chat.id)
+    if notification_list:
+        bot.send_message(message.chat.id, text = "Выбранный вами ранее список компаний (Название - Тикер - Биржа)")
+        bot.send_message(message.chat.id, text = notification_list)
+        bot.send_message(message.chat.id, text = '''Введите список компаний, которые хотите добавить. Чтобы получить подсказку напишите: @IMStockBot, затем пробел и затем начните вводить название. Список существующих компаний будет предложен выше:) Чтобы прекратить ввод или оставить текущий список компаний, напишите: <b>Хватит</b>''', parse_mode='html')
+    else: 
+        bot.send_message(message.chat.id, text = '''У вас нет выбранных ранее компаний. Давайте добавим несколько:)\n
+Введите список компаний, которые хотите добавить. Чтобы получить подсказку напишите: @IMStockBot, затем пробел и затем начните вводить название. Список существующих компаний будет предложен выше:) Чтобы прекратить ввод, напишите: <b>Хватит</b>''', parse_mode='html')
+
+    dbworker.set_state(message.chat.id, config.States.S_COMPANIES.value)
 @bot.message_handler(func=lambda message: dbworker.get_current_state(message.chat.id) == config.States.S_COMPANIES.value)
 def company_notification(message):
     if message.text!='Хватит':
@@ -409,35 +453,12 @@ def company_notification(message):
         if notification_list:
             bot.send_message(message.chat.id, text = "Выбранный вами список компаний (Название - Тикер - Биржа)")
             bot.send_message(message.chat.id, text = notification_list)
-            bot.send_message(message.chat.id, text = "Введите удобное для вас время получения котировок акций")
-            dbworker.set_state(message.chat.id, config.States.S_TIME.value)
+            bot.send_message(message.chat.id, text = "Ожидайте получения уведомлений:)")
+            dbworker.set_state(message.chat.id, config.States.S_START.value)
         else: 
             bot.send_message(message.chat.id, text = '''Кажется вы ничего не выбрали.\n
 Введите список компаний, которые хотите добавить в уведомления.\n
 Чтобы прекратить ввод, напишите: <b>Хватит</b>''', parse_mode='HTML')
-
-
-@bot.message_handler(func=lambda message: dbworker.get_current_state(message.chat.id) == config.States.S_TIME.value)
-def time_notification(message):
-    try: 
-        dbworker.set_notification_time(message.chat.id, datetime.strptime(message.text, "%H:%M"))
-    except ValueError:
-        bot.send_message(message.chat.id, text = "Ой, кажется вы ввели неправильное время. Введите удобное для вас время еще раз:(")
-        return
-    try:
-        notification_state = dbworker.get_notification_state(message.chat.id)
-        if notification_state == 1:
-            notification.add_notification_day(message.chat.id, message.text)
-        if notification_state == 2:
-            notification.add_notification_2days(message.chat.id, message.text)
-        if notification_state == 3:
-            notification.add_notification_week(message.chat.id, message.text)
-        bot.send_message(message.chat.id, text = "Выбор времени произошел удачно. Ожидайте получения уведомления:)")
-        dbworker.set_state(message.chat.id, config.States.S_START.value)
-    except apscheduler.jobstores.base.ConflictingIdError:
-        bot.send_message(message.chat.id, text = '''Упс, что-то пошло не так. Напишите об этом @mishlen25. Произошло несоответствие данных в базе данных уведомлений и базе данных пользователей''', parse_mode = 'HTML')
-        dbworker.set_state(message.chat.id, config.States.S_START.value)
-   
 
 @bot.message_handler(func=lambda message: dbworker.get_current_state(message.chat.id) == config.States.S_GWEEK.value)
 def get_graph_week(message):
@@ -511,6 +532,9 @@ def company_delete_selectively(message):
 
 
 if __name__ == '__main__':
-    t1 = threading.Thread(target=notification.run_notification, args=[])
-    t1.start()
-    bot.infinity_polling()
+    try:
+        t1 = threading.Thread(target=notification.run_notification, args=[])
+        t1.start()
+        bot.infinity_polling()
+    except:
+        pass

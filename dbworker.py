@@ -1,6 +1,5 @@
 import sqlite3
 import config
-from datetime import datetime
 
 # Пытаемся узнать из базы «состояние» пользователя
 def get_current_state(user_chat_id):
@@ -31,16 +30,23 @@ def get_notification_state(user_chat_id:int):
         cur.execute("SELECT notification_state FROM User WHERE user_chat_id = ?", (user_chat_id,))
         return cur.fetchone()[0]
 
+def get_notification_time(user_chat_id:int):
+    with sqlite3.connect(config.db_file) as conn:
+        cur = conn.cursor()
+        cur.execute("SELECT notification_time FROM User WHERE user_chat_id = ?", (user_chat_id,))
+        return cur.fetchone()[0]
+
 def set_notification_state(user_chat_id:int, state:int):
     with sqlite3.connect(config.db_file) as conn:
         cur = conn.cursor()
         cur.execute("UPDATE User SET notification_state = ? WHERE user_chat_id = ?", (state,user_chat_id))
         conn.commit()
 
-def set_notification_time(user_chat_id:int, time: datetime):
+
+def set_notification_time(user_chat_id:int, time: str):
     with sqlite3.connect(config.db_file) as conn:
         cur = conn.cursor()
-        cur.execute("UPDATE User SET notification_time = ? WHERE user_chat_id = ?", (time.strftime("%H:%M"),user_chat_id))
+        cur.execute("UPDATE User SET notification_time = ? WHERE user_chat_id = ?", (time,user_chat_id))
         conn.commit()
 
 def set_notification_member(user_chat_id:int, name:str):
