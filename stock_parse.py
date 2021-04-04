@@ -19,7 +19,7 @@ def parse_by_stockname(name: str) -> tuple:
 
 
 from forex_python.converter import CurrencyRates
-def parse_currency(currencyname : str) -> str:
+def parse_currency(currencyname : str) -> float:
     """
     Функция принимает на вход название валюты
     Функция возвращает ее стоимость (по отношению к USD)
@@ -28,4 +28,4 @@ def parse_currency(currencyname : str) -> str:
     currency = converter.get_rates(currencyname)['RUB']
     return currency
 
-#print(parse_by_stockname("AAPL"))
+print(type(parse_currency("USD")))

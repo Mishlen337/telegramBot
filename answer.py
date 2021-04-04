@@ -12,18 +12,18 @@ def theory_answer_trading():
 
 def quote_answer_ruble(company):
     val, currency = stock_parse.parse_by_stockname(company)
-    val = float(val) * float(stock_parse.parse_currency(currency))
-    return f'Компания: {company} стоит {val:.2f} RUB'
+    val = float(val.replace(',','')) * float(stock_parse.parse_currency(currency))
+    return f"Компания: {company} стоит {val:.2f} RUB"
     
 def quote_answer_currency(company):
     val, currency = stock_parse.parse_by_stockname(company)
-    return f'Компания: {company} стоит {float(val):.2f} {currency}'
+    return f"Компания: {company} стоит {float(val.replace(',','')):.2f} {currency}"
         
 
     #@classmethod
 def notification_answer(self,company):
     val, currency = stock_parse.parse_by_stockname(company)
-    return f'Компания: {company} стоит {float(val):.2f} {currency}'
+    return f"Компания: {company} стоит {float(val.replace(',','')):.2f} {currency}"
     
 
 
