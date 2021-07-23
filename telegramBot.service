@@ -1,0 +1,15 @@
+[Unit]
+Description=demo service
+After=network.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=1
+User=user
+ExecStart=/home/user/IsakovBot/env/bin/python3:/home/user/IsakovBot/telegramBot/bot.py
+
+[Install]
+WantedBy=multi-user.target
+
