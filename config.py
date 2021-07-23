@@ -11,6 +11,7 @@ notification_db_path = "./databases/notification.sqlite"
 image_path = "./images"
 url_begining = 'https://finance.yahoo.com/quote/'
 theory_path = "./theory"
+message_answers_path = "./message_answers"
 class States(Enum):
     """Класс - перечисление состояний"""
     S_START = 0 # Начало нового диалога
